@@ -19,7 +19,7 @@ const QuestionBank = {
             {
                 position: { x: 8, y: 1, z: 3 },
                 type: 'flower',
-                color: 0xe91e63,
+                color: 0xdeadbeef,
                 questions: null
             },
             {
