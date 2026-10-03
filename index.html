@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MATH QUEST 3D - Camino al End</title>
+    
+    <!-- Three.js desde CDN -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    
+    <!-- Post-processing (Bloom) -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/EffectComposer.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/RenderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/ShaderPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/postprocessing/UnrealBloomPass.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/LuminosityHighPassShader.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/shaders/CopyShader.js"></script>
+    
+    <!-- Estilos -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/ui.css">
+    <link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+    <!-- Contenedor 3D -->
+    <div id="game-container"></div>
+    
+    <!-- Crosshair -->
+    <div id="crosshair" class="hidden">
+        <div class="crosshair-dot"></div>
+        <div class="crosshair-line ch-top"></div>
+        <div class="crosshair-line ch-bottom"></div>
+        <div class="crosshair-line ch-left"></div>
+        <div class="crosshair-line ch-right"></div>
+    </div>
+    
+    <!-- HUD del Juego -->
+    <div id="hud" class="hidden">
+        <div class="hud-left">
+            <div class="hearts" id="hearts">❤️❤️❤️❤️❤️</div>
+            <div class="tickets">💎 <span id="ticket-count">0</span></div>
+        <div class="progress-container" id="progress-container">
+            <div class="progress-fill" id="world-progress" style="width: 0%"></div>
+        </div>
+        </div>
+        <div class="hud-center">
+            <div class="world-name" id="world-name">Overworld</div>
+            <div class="level-indicator" id="level-indicator">NIVEL 1</div>
+        </div>
+        <div class="hud-right">
+            <button id="sound-toggle">🔊</button>
+            <button id="pause-btn">⏸️</button>
+        </div>
+    </div>
+    
+    <!-- Menú Principal -->
+    <div id="main-menu" class="menu active">
+        <h1 class="game-title">MATH QUEST 3D</h1>
+        <h2 class="game-subtitle">CAMINO AL END — MINECRAFT VOXEL ADVENTURE</h2>
+        
+        <div class="menu-content">
+            <!-- Proyecto Info -->
+            <div class="project-info panel">
+                <p class="project-title">🏆 PROYECTO STEAM FAIR 2025 · GRADO 9 N4</p>
+                <p class="project-members"><strong>Integrantes:</strong> Gabriela Sofía Ramírez Martínez · David Alejandro Corpas Muñoz · Ángela María Crizón Herrera</p>
+            </div>
+            
+            <!-- Selector de Mundos -->
+            <div class="world-selector">
+                <button class="world-card active" data-world="overworld">
+                    <span class="world-icon">🌳</span>
+                    <h3>Overworld 3D</h3>
+                    <p>Función Lineal</p>
+                </button>
+                <button class="world-card" data-world="mines">
+                    <span class="world-icon">⛏️</span>
+                    <h3>Mines 3D</h3>
+                    <p>Función Cuadrática</p>
+                </button>
+                <button class="world-card" data-world="nether">
+                    <span class="world-icon">🔥</span>
+                    <h3>Nether 3D</h3>
+                    <p>Probabilidad</p>
+                </button>
+                <button class="world-card" data-world="end">
+                    <span class="world-icon">🐉</span>
+                    <h3>The End 3D</h3>
+                    <p>Batalla del Dragón</p>
+                </button>
+            </div>
+            
+            <!-- Configuraciones -->
+            <div class="settings-panel panel">
+                <!-- Modo -->
+                <div class="setting-group">
+                    <label>🎮 MODO DE JUEGO 3D</label>
+                    <div class="mode-selector">
+                        <button class="mode-btn active" data-mode="adventure">🛡️ Aventura 3D</button>
+                        <button class="mode-btn" data-mode="timed">⏱️ Contrarreloj</button>
+                        <button class="mode-btn" data-mode="duel">⚔️ Duelo 1 vs 1</button>
+                    </div>
+                </div>
+                
+                <!-- Grado -->
+                <div class="setting-group">
+                    <label>🎓 SELECCIONA TU GRADO ESCOLAR</label>
+                    <div class="grade-selector-buttons">
+                        <button class="grade-btn" data-grade="5">5º</button>
+                        <button class="grade-btn" data-grade="6">6º</button>
+                        <button class="grade-btn" data-grade="7">7º</button>
+                        <button class="grade-btn" data-grade="8">8º</button>
+                        <button class="grade-btn active" data-grade="9">9º</button>
+                        <button class="grade-btn" data-grade="10">10º</button>
+                        <button class="grade-btn" data-grade="11">11º</button>
+                    </div>
+                </div>
+                
+                <!-- Dificultad -->
+<div class="setting-group">
+<label>🎯 DIFICULTAD</label>
+<div class="difficulty-selector">
+<button class="diff-btn" data-difficulty="easy">😊 Facil</button>
+<button class="diff-btn active" data-difficulty="normal">🤔 Normal</button>
+<button class="diff-btn" data-difficulty="hard">🔥 Dificil</button>
+</div>
+</div>
+
+                <!-- Jugador -->
+                <div class="setting-group">
+                    <label>👤 NOMBRE DEL EXPLORADOR</label>
+                    <input type="text" id="player-name" placeholder="Escribe tu nombre..." maxlength="15">
+                </div>
+            </div>
+            
+            <!-- Acciones -->
+            <div class="action-buttons">
+                <button id="start-btn" class="primary-btn">⚔️ ENTRAR AL MUNDO 3D</button>
+                <div class="secondary-actions">
+                    <button id="how-to-play-btn" class="secondary-btn">📖 ¿Cómo se juega?</button>
+                    <button id="hall-of-fame-btn" class="secondary-btn">🏆 Salón de la Fama</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- El dialogo de preguntas se crea dinamicamente en Modal.createDialog() -->
+    
+    <!-- Modal de Dimensión Completada -->
+    <div id="dimension-complete-modal" class="modal hidden">
+        <div class="modal-content celebration">
+            <h2>¡Dimensión Completada!</h2>
+            <div class="stats">
+                <p>🧱 Bloques Minados: <span id="blocks-mined">0</span>/5</p>
+                <p>💎 Tickets Ganados: <span id="tickets-earned">0</span></p>
+                <p>📊 Total Tickets: <span id="total-tickets">0</span></p>
+            </div>
+            <button id="next-dimension-btn" class="primary-btn">🌀 Siguiente Dimensión</button>
+        </div>
+    </div>
+    
+    <!-- Modal de Victoria Final -->
+    <div id="victory-modal" class="modal hidden">
+        <div class="modal-content victory">
+            <h1>🐉 ¡Ender Dragón Derrotado!</h1>
+            <div class="certificate-preview">
+                <canvas id="certificate-canvas"></canvas>
+            </div>
+            <div class="victory-actions">
+                <button id="download-cert">📥 Descargar Diploma</button>
+                <button id="print-cert">🖨️ Imprimir</button>
+                <button id="play-again">🔄 Jugar de Nuevo</button>
+                <button id="view-hall">🏆 Salón de la Fama</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- Modal Salón de la Fama -->
+    <div id="hall-of-fame-modal" class="modal hidden">
+        <div class="modal-content">
+            <h2>🏆 Salón de la Fama</h2>
+            <table id="hall-of-fame-table">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Jugador</th>
+                        <th>Grado</th>
+                        <th>Modo</th>
+                        <th>Tickets</th>
+                    </tr>
+                </thead>
+                <tbody id="hall-of-fame-body"></tbody>
+            </table>
+            <button class="close-modal">✕ Cerrar</button>
+        </div>
+    </div>
+    
+    <!-- Minimap -->
+    <div id="minimap-container" class="hidden">
+        <div class="minimap-label" id="minimap-world-name">Overworld</div>
+        <canvas id="minimap-canvas" width="180" height="180"></canvas>
+    </div>
+    
+    <!-- Controles de Ayuda -->
+    <div id="controls-help" class="hidden">
+        <div class="control-item">⬆️ WASD - Moverse</div>
+        <div class="control-item">␣ Espacio - Saltar</div>
+        <div class="control-item">🖱️ Ratón - Mirar</div>
+        <div class="control-item">⛏️ Clic / E - Picar Bloque</div>
+        <div class="control-item">📷 V - Cambiar Cámara</div>
+    </div>
+    
+    <!-- Scripts (orden importa) -->
+    <script src="js/config.js"></script>
+    <script src="js/utils/storage.js"></script>
+    <script src="js/utils/audio.js"></script>
+    <script src="js/utils/helpers.js"></script>
+    <script src="js/utils/textureGenerator.js"></script>
+    <script src="js/questions/questionBank.js"></script>
+    <script src="js/questions/questionManager.js"></script>
+    <script src="js/systems/ticketSystem.js"></script>
+    <script src="js/systems/hallOfFame.js"></script>
+    <script src="js/systems/voxelSystem.js"></script>
+    <script src="js/systems/skySystem.js"></script>
+    <script src="js/systems/visualEffects.js"></script>
+    <script src="js/scene.js"></script>
+    <script src="js/player.js"></script>
+    <script src="js/worlds/overworld.js"></script>
+    <script src="js/worlds/mines.js"></script>
+    <script src="js/worlds/nether.js"></script>
+    <script src="js/worlds/end.js"></script>
+    <script src="js/worlds/worldManager.js"></script>
+    <script src="js/ui/menuManager.js"></script>
+    <script src="js/ui/hud.js"></script>
+    <script src="js/ui/modal.js"></script>
+    <script src="js/ui/minimap.js"></script>
+    <script src="js/ui/certificate.js"></script>
+    <script src="js/game.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

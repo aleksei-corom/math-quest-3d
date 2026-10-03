@@ -1,0 +1,40 @@
+/* === RESET Y BASE === */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Courier New', monospace;
+}
+
+body {
+    overflow: hidden;
+    background: #000;
+    color: white;
+    user-select: none;
+}
+
+#game-container {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    z-index: 1;
+}
+
+.hidden {
+    display: none !important;
+}
+
+/* === TIPOGRAFÍA PIXELADA === */
+@font-face {
+    font-family: 'MinecraftFont';
+    src: url('../assets/fonts/minecraft.woff2') format('woff2');
+}
+
+.game-title {
+    font-size: 4em;
+    text-shadow: 4px 4px 0 #1B5E20, 8px 8px 20px rgba(0,0,0,0.5);
+    color: #4CAF50;
+    letter-spacing: 3px;
+}

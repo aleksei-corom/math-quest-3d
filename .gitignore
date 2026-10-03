@@ -1,0 +1,9 @@
+# Estado interno de Freebuff (logs de preview, ids)
+.freebuff/
+
+# Evidencia de verificación de esta sesión (screenshots)
+evidence/
+
+# Logs sueltos
+*.log
+*.log.err
