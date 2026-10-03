@@ -1,0 +1,37 @@
+# Sincronización web ↔ Godot: cualquier drift en la bank de preguntas (bloques,
+# colores, temas, grados o cadenas de los generadores) sale con rc=1 y roja la CI.
+# El script es SOLO LECTURA aquí: --write-data nunca se ejecuta en CI.
+name: sync-question-bank
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit-drift:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout variante web
+        uses: actions/checkout@v4
+
+      # El port vive en el repo hermano (excluido de este repo por .gitignore).
+      # Repo público: el GITHUB_TOKEN del checkout por defecto lo lee sin problema.
+      - name: Checkout variante Godot (repo hermano)
+        uses: actions/checkout@v4
+        with:
+          repository: aleksei-corom/math-quest-3d-godot
+          path: godot-port
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Auditar drift web <-> Godot (rc!=0 falla la CI)
+        run: node tools/sync-question-bank.mjs --web . --godot godot-port
