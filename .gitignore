@@ -7,3 +7,6 @@ evidence/
 # Logs sueltos
 *.log
 *.log.err
+
+# Port a Godot 4 — repo anidado (math-quest-3d-godot), vive fuera de este repo
+godot-port/
