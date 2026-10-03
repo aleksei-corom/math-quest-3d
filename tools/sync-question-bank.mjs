@@ -12,23 +12,30 @@
  *      claves estructurales y de las omisiones intencionales del port.
  *
  * Uso:
- *   node tools/sync-question-bank.mjs [--web <dir>] [--godot <dir>] [--json] [--help]
+ *   node tools/sync-question-bank.mjs [--web <dir>] [--godot <dir>] [--write-data] [--json] [--help]
  *
- *   --web    raíz de la variante web   (por defecto: repo actual)
- *   --godot  raíz del proyecto Godot   (por defecto: godot-port/, ../godot-port/,
- *            ../math-quest-3d-godot/; si no existe, error de instalación)
- *   --json   salida machine-readable
+ *   --web        raíz de la variante web   (por defecto: repo actual)
+ *   --godot      raíz del proyecto Godot   (por defecto: godot-port/, ../godot-port/,
+ *                ../math-quest-3d-godot/; si no existe, error de instalación)
+ *   --write-data regenera datos del lado Godot DESDE el JS: la región const
+ *                BLOCKS completa y los campos theme/sky/ground de const WORLDS
+ *                (label/icon son propios de Godot y se preservan intactos).
+ *                Solo escribe si hay cambios; luego re-verifica y sale con el
+ *                estado final (0 = sincronizado; el drift de generadores no es
+ *                regenerable y queda señalado para arreglo manual).
+ *   --json       salida machine-readable
  *
  * Códigos de salida: 0 = sincronizado · 1 = drift detectado · 2 = error de setup
  *
  * Notas de diseño:
- *   - Solo lectura: ante drift imprime un diff accionable; no reescribe nada
- *     (los generadores son código en ambos lados, no datos).
+ *   - Por defecto es solo lectura: ante drift imprime un diff accionable.
+ *     --write-data reescribe SOLO datos deterministas (bloques/colores/temas);
+ *     los generadores son código en ambos lados y nunca se regeneran.
  *   - Las dificultades (getRange/drand/dpick) existen en el JS pero NUNCA se
  *     invocan (dead code): se excluyen del port y de esta comparación.
  */
 
-import { readFileSync, existsSync } from "node:fs";
+import { readFileSync, writeFileSync, existsSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -51,11 +58,12 @@ function fail(msg) {
 }
 
 function parseArgs(argv) {
-	const args = { web: null, godot: null, json: false, help: false };
+	const args = { web: null, godot: null, json: false, help: false, writeData: false };
 	for (let i = 0; i < argv.length; i++) {
 		const a = argv[i];
 		if (a === "--web") args.web = argv[++i];
 		else if (a === "--godot") args.godot = argv[++i];
+		else if (a === "--write-data") args.writeData = true;
 		else if (a === "--json") args.json = true;
 		else if (a === "--help" || a === "-h") args.help = true;
 		else fail("argumento desconocido: " + a + " (usa --help)");
@@ -300,6 +308,53 @@ function diffStrings(jsStr, gdStr) {
 	return { onlyJs, onlyGd };
 }
 
+// ── regeneración (--write-data) ────────────────────────────────────────────────
+
+/**
+ * Regenera en el texto de question_bank.gd SOLO datos deterministas desde el JS:
+ *   - la región const BLOCKS completa (posición/tipo/color por mundo), y
+ *   - los campos theme/sky/ground de const WORLDS (label/icon son de Godot).
+ * Devuelve el texto nuevo sin escribir; el llamador decide si hay cambios.
+ */
+function regenerateBankGd(bankText, jsBlocks, jsWorlds) {
+	const q = (s) => String(s).replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+
+	// 1) const BLOCKS := { … } — reconstruir entero
+	const bStart = bankText.indexOf("const BLOCKS := {");
+	if (bStart < 0) fail("godot: no se encontró 'const BLOCKS := {'");
+	const bEnd = bankText.indexOf("\n}", bStart);
+	if (bEnd < 0) fail("godot: const BLOCKS sin cierre");
+	const lines = ["const BLOCKS := {"];
+	for (const w of WORLDS) {
+		const arr = jsBlocks[w] ?? [];
+		if (arr.length === 0) fail(`js: mundo '${w}' sin bloques; no se regenera BLOCKS`);
+		lines.push(`\t"${w}": [`);
+		for (const b of arr) {
+			lines.push(`\t	{"position": Vector3(${b.pos.join(", ")}), "type": "${q(b.type)}", "color": Color("${b.color}")},`);
+		}
+		lines.push("\t],");
+	}
+	lines.push("}");
+	let out = bankText.slice(0, bStart) + lines.join("\n") + bankText.slice(bEnd + 2);
+
+	// 2) const WORLDS := { … } — parchear solo theme/sky/ground, preservar label/icon
+	const wStart = out.indexOf("const WORLDS := {");
+	if (wStart < 0) fail("godot: no se encontró 'const WORLDS := {'");
+	for (const w of WORLDS) {
+		const i = out.indexOf(`\t"${w}": {`, wStart);
+		if (i < 0) continue; // mundo ausente → lo reporta el diff final
+		const j = out.indexOf("\n\t}", i);
+		if (j < 0) continue;
+		let seg = out.slice(i, j);
+		const js = jsWorlds[w] ?? {};
+		if (js.theme != null) seg = seg.replace(/"theme": "[^"]*"/, `"theme": "${q(js.theme)}"`);
+		if (js.sky != null) seg = seg.replace(/"sky": Color\("[0-9a-fA-F]*"\)/, `"sky": Color("${js.sky}")`);
+		if (js.ground != null) seg = seg.replace(/"ground": Color\("[0-9a-fA-F]*"\)/, `"ground": Color("${js.ground}")`);
+		out = out.slice(0, i) + seg + out.slice(j);
+	}
+	return out;
+}
+
 // ── main ───────────────────────────────────────────────────────────────
 
 function main() {
@@ -321,13 +376,27 @@ function main() {
 
 	const bankJs = readText(join(webRoot, "js", "questions", "questionBank.js"));
 	const configJs = readText(join(webRoot, "js", "config.js"));
-	const bankGd = readText(join(godotRoot, "data", "question_bank.gd"));
+	const bankGdPath = join(godotRoot, "data", "question_bank.gd");
+	const rawGd = readFileSync(bankGdPath, "utf8"); // crudo para conservar EOL al escribir
+	const bankGd = rawGd.replace(/\r\n/g, "\n");
 	const genGd = readText(join(godotRoot, "data", "question_generators.gd"));
 
 	const jsBlocks = extractJsBlocks(bankJs);
-	const gdBlocks = extractGdBlocks(bankGd);
 	const jsWorlds = extractJsThemesAndColors(bankJs, configJs);
-	const gdWorlds = extractGdWorlds(bankGd);
+
+	// --write-data: regenerar datos deterministas desde el JS y luego re-verificar
+	let gdText = bankGd;
+	let wrote = false;
+	if (args.writeData) {
+		const next = regenerateBankGd(bankGd, jsBlocks, jsWorlds);
+		if (next !== bankGd) {
+			writeFileSync(bankGdPath, rawGd.includes("\r\n") ? next.replace(/\n/g, "\r\n") : next, "utf8");
+			wrote = true;
+			gdText = next;
+		}
+	}
+	const gdBlocks = extractGdBlocks(gdText);
+	const gdWorlds = extractGdWorlds(gdText);
 	const jsGrades = extractJsGrades(bankJs);
 	const gdGrades = extractGdGrades(genGd);
 	const jsStr = extractJsStrings(bankJs);
@@ -347,13 +416,18 @@ function main() {
 		report.strings.onlyGd.length;
 
 	if (args.json) {
-		console.log(JSON.stringify({ ok: drift === 0, drift, ...report }, null, 2));
+		console.log(JSON.stringify({ ok: drift === 0, drift, wrote, ...report }, null, 2));
 		process.exit(drift === 0 ? 0 : 1);
 	}
 
 	const line = "─".repeat(64);
 	console.log("[sync] web:   " + webRoot);
 	console.log("[sync] godot: " + godotRoot);
+	if (args.writeData) {
+		console.log(wrote
+			? "[sync] --write-data: question_bank.gd REGENERADO desde el JS (bloques + theme/sky/ground)."
+			: "[sync] --write-data: question_bank.gd ya estaba al día (sin escritura).");
+	}
 	console.log(line);
 	console.log(`bloques:   web=${WORLDS.map((w) => (jsBlocks[w] ?? []).length).join("/")}  godot=${WORLDS.map((w) => (gdBlocks[w] ?? []).length).join("/")}`);
 	console.log(`cadenas:   web=${[...jsStr.values()].reduce((a, b) => a + b, 0)}  godot=${[...gdStr.values()].reduce((a, b) => a + b, 0)}`);
@@ -378,7 +452,10 @@ function main() {
 		process.exit(0);
 	}
 	console.log(line);
-	console.log(`✗ DRIFT DETECTADO (${drift} diferencia/s) — alinea ambos lados y vuelve a correr.`);
+	console.log(`✗ DRIFT DETECTADO (${drift} diferencia/s) — ` +
+		(args.writeData
+			? "lo regenerable ya se reparó; el resto (grados/cadenas) no es regenerable: arréclalo manualmente."
+			: "alinea ambos lados y vuelve a correr."));
 	process.exit(1);
 }
 
