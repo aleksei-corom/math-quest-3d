@@ -200,7 +200,7 @@ const QuestionGenerators = {
             6:()=>{const b=this.rand(3,8),c=this.rand(2,6),d=this.rand(2,5);return{q:"Si "+b+" herr cuestan "+b*c+" ling, cuantas con "+b*c*d+"?",a:String(c*d),hint:b*c*d+"/"+b*c+"*"+b};},
             7:()=>{const m=this.pick([2,3,4,5,6,7,8]),x=this.rand(2,8);return{q:"Si y = "+m+"x, y cuando x = "+x+"?",a:String(m*x),hint:m+" * "+x};},
             8:()=>{const m=this.pick([2,3,4,5]),b=this.rand(1,10),x=this.rand(2,6);return{q:"Si y = "+m+"x + "+b+", y cuando x = "+x+"?",a:String(m*x+b),hint:m+"("+x+") + "+b};},
-            9:()=>{const x1=this.rand(0,3),y1=this.rand(1,5),m=this.rand(1,4),x2=x1+this.rand(1,4),y2=y1+m*(x2-x1);return{q:"Ecuacion por ("+x1+","+y1+") y ("+x2+","+y2+"). y=mx+b",a:"y="+m+"x+"+y1,hint:"m=("+y2+"-"+y1+")/("+x2+"-"+x1+")"};},
+            9:()=>{const x1=this.rand(0,3),y1=this.rand(1,5),m=this.rand(1,4),x2=x1+this.rand(1,4),y2=y1+m*(x2-x1),b=y1-m*x1;return{q:"Ecuacion por ("+x1+","+y1+") y ("+x2+","+y2+"). y=mx+b",a:"y="+m+"x"+(b<0?"-"+Math.abs(b):"+"+b),hint:"m=("+y2+"-"+y1+")/("+x2+"-"+x1+")"};},
             10:()=>{const f=this.pick([5000,10000,15000]),v=this.pick([100,200,300,500]),x=this.rand(5,20);return{q:"Servicio $"+f+" fijo + $"+v+"/unidad. Total por "+x+"?",a:String(v*x+f),hint:v+"*"+x+" + "+f};},
             11:()=>{const ops=[()=>{const m=this.rand(2,5),b=this.rand(1,10),x=this.rand(2,8);return{q:"f(x)="+m+"x+"+b+", f("+x+")=?",a:String(m*x+b),hint:m+"("+x+")+"+b};},()=>{const a=this.rand(1,4),c=this.rand(2,8),b=this.rand(1,5);return{q:"Sistema: "+a+"x+y="+(a*c+b)+", x="+c+". y=?",a:String(b),hint:a+"("+c+")+y="+(a*c+b)};}];return this.pick(ops)();}
         };
